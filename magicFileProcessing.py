@@ -25,31 +25,27 @@ system_prompt = f"""
     + Employer Contributions 
     = Wages Payable (total cost to company)
 
-    There are two extraction and fill formats: (i) individual lines (per employee) and (ii) summary totals (aggregate).
-    valueDate - Use current utc timezone
-    journalEntries - If there are multiple journal entry lines, create multiple journal entries under journalEntries. 
+    I require two extraction and fill formats: (i) individual lines (per employee) and (ii) summary totals (aggregate).
 
-    Provide a structured response using the specified json format below:
+    For each individual line per employee, provide it in this specified json structure as follows:
+    amount - Net Payable or equivalent. 
     ```
     {{
-        "operationName": "CreateJournal",
-        "contactResourceId": "xxx",
-        "valueDate": "xxx",
-        "internalNotes": "Test",
-        "organizationResourceId": "xxx"
-        "reference": "JournalRef",
-        "status": "DRAFT",
-        "tags": null,
-        "type": "JOURNAL_MANUAL"
-        "journalEntries: [ {{
-            "organizationAccountResourceId": "xxx",
-            "debitAmount": "",
-            "creditAmount": "",
-            "description": "xxx"
-        }} ],
+        "employeeName": "xxx", 
+        "amount": "xxx"
     }}
     ```
-    Your response should only follow this structure and should not deviate from it. Return a valid json. 
+
+    For each summary total, provide it in this specified json strucutre as follows:
+    amount - Wages Payable (total cost to company) or equivalent
+    ```
+    {{
+        "amount": "xxx"
+        "description": "xxx
+    }}
+    ```
+
+    Your response should only follow the provided structures and not deviate from it. Return a valid json. 
     """
 
 
@@ -68,10 +64,10 @@ def call_gpt(df, prompt, user_prompt):
             model="gpt-4-turbo",
             messages=[
                 {"role": "system", "content": "You are a skilled accountant, with knowledge in all aspects of accounting. \
-                 You will be analyzing financial payroll files and creating journal entires."},
+                 You will be analyzing financial payroll files and creating journal entires for the company."},
                 {"role": "user", "content": full_prompt}
             ],
-            max_tokens=150
+            max_tokens=300
         )
         return response.choices[0].message.content
     except Exception as e:
@@ -96,11 +92,11 @@ def main():
             utc_time = dt.replace(tzinfo=timezone.utc) 
             utc_timestamp = utc_time.timestamp()
 
-            df = pd.read_excel(uploaded_file)
+            df = pd.read_excel(uploaded_file, sheet_name=None) # some excel files have multiple sheets
             response = call_gpt(df, system_prompt, custom_prompt) 
             st.write(f"Analysis for {uploaded_file.name}:")
             st.write(response)
-            st.write(utc_timestamp)
+            st.write(f"utc timestamp: {utc_timestamp}")
 
 if __name__ == "__main__":
     main()
