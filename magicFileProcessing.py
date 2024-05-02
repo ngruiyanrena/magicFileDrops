@@ -28,24 +28,34 @@ system_prompt = f"""
     I require two extraction and fill formats: (i) individual lines (per employee) and (ii) summary totals (aggregate).
 
     For each individual line per employee, provide it in this specified json structure as follows:
-    amount - Net Payable or equivalent. 
+    amount - Find net amount company has to pay that particular employee. 
+    Look at values from the respective rows where column name is 'Net Payable' or 'Payment to Employee' or equivalent. 
     ```
     {{
-        "employeeName": "xxx", 
-        "amount": "xxx"
+        "employees": [
+            {{
+                "employeeName": "xxx", 
+                "amount": "xxx"
+            }}
+        ]
     }}
     ```
 
     For each summary total, provide it in this specified json strucutre as follows:
-    amount - Wages Payable (total cost to company) or equivalent
+    amount - Wages Payable (total cost to company) or Net Payable or equivalent. Find it from the file. Do not calculate by yourself. 
     ```
     {{
-        "amount": "xxx"
-        "description": "xxx
+        "summaryTotals": [
+            {{
+                "amount": "xxx"
+                "description": "xxx
+            }}
+        ]
     }}
     ```
 
-    Your response should only follow the provided structures and not deviate from it. Return a valid json. 
+    If amount under employees add up to more than summary totals amount, recheck amounts. 
+    Response should only follow the provided structures and not deviate from it. Return only a combined valid json. 
     """
 
 
