@@ -55,6 +55,14 @@ system_prompt = f"""
     ```
 
     If amount under employees add up to more than summary totals amount, recheck amounts. 
+
+    Find month and year this payroll file is for. 
+    ```
+    {{
+        "date": "Jan 2023"
+    }}
+    ```
+    
     Response should only follow the provided structures and not deviate from it. Return only a combined valid json. 
     """
 
