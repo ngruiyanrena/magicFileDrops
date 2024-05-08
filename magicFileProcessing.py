@@ -15,23 +15,25 @@ system_prompt = f"""
     Universally, payrolls follow a standard bridge for each period.  
 
     Gross Salary 
-    + Additions (e.g. bonuses, employee claims reimbursements, commissions)
-    + Deductions (e.g. employee statutory contributions of all types, voluntary contributions of all types, income taxes withheld)
+    Add: Additions (e.g. bonuses, employee claims reimbursements, commissions)
+    Less: Deductions (e.g. employee statutory contributions of all types, voluntary contributions of all types, income taxes withheld)
+    Less: Clawbacks/Paybacks/NoPay Leave
     = Take-home Salary
-    + Employer Contributions 
-    = Wages Payable (total cost to company)
+
+    Add: Deductions (from above)
+    Add: Employer Contributions
+    = Wages Payable ("total cost to company")
 
     I require two extraction and fill formats: (i) individual lines (per employee) and (ii) summary totals (aggregate).
 
     For each individual line per employee, provide it in this specified json structure as follows:
-    amount - Find net amount company has to pay that particular employee. 
-    Look at values from the respective rows where column name is 'Net Payable' or 'Payment to Employee' or equivalent. 
     ```
     {{
         "employees": [
             {{
-                "employeeName": "xxx", 
-                "amount": "xxx"
+                "employee_name": "xxx", 
+                "gross_salary": "xxx",
+                "take_home_salary": "xxx"
             }}
         ]
     }}
@@ -43,15 +45,13 @@ system_prompt = f"""
     {{
         "summaryTotals": [
             {{
+                "description": "xxx",
                 "amount": "xxx"
-                "description": "xxx
             }}
         ]
     }}
     ```
-
-    If amount under employees add up to more than summary totals amount, recheck amounts. 
-
+ 
     Find month and year this payroll file is for. 
     ```
     {{
