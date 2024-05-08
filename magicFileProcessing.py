@@ -1,15 +1,11 @@
 import streamlit as st
 import pandas as pd
 import openai
-from dotenv import load_dotenv
-import os
 from datetime import timezone 
 import datetime 
 
-
-load_dotenv('.env')
-OPENAI_API_KEY : str = os.getenv('OPENAI_API_KEY')
-
+OPENAI_API_KEY = '' 
+OPENAI_API_KEY = st.secrets["API_KEY"]
 
 client = openai.OpenAI(
     api_key=OPENAI_API_KEY
