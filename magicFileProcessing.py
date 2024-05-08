@@ -3,6 +3,7 @@ import pandas as pd
 import openai
 from datetime import timezone 
 import datetime 
+import json
 
 OPENAI_API_KEY = '' 
 OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
@@ -12,8 +13,10 @@ client = openai.OpenAI(
 )
 
 system_prompt = f"""
+    I require two extraction and fill formats: (i) individual lines (per employee) and (ii) summary totals (aggregate).
+    
     Universally, payrolls follow a standard bridge for each period.  
-
+    ```
     Gross Salary 
     Add: Additions (e.g. bonuses, employee claims reimbursements, commissions)
     Less: Deductions (e.g. employee statutory contributions of all types, voluntary contributions of all types, income taxes withheld)
@@ -23,16 +26,19 @@ system_prompt = f"""
     Add: Deductions (from above)
     Add: Employer Contributions
     = Wages Payable ("total cost to company")
-
-    I require two extraction and fill formats: (i) individual lines (per employee) and (ii) summary totals (aggregate).
+    ```
 
     For each individual line per employee, provide it in this specified json structure as follows:
+    Return only absolute values (i.e no '+' or '-'). 
     ```
     {{
         "employees": [
             {{
                 "employee_name": "xxx", 
                 "gross_salary": "xxx",
+                "additions": "xxx",
+                "deductions": "xxx",
+                "clawbacks": "xxx",
                 "take_home_salary": "xxx"
             }}
         ]
@@ -40,13 +46,14 @@ system_prompt = f"""
     ```
 
     For each summary total, provide it in this specified json strucutre as follows:
-    amount - Wages Payable (total cost to company) or Net Payable or equivalent. Find it from the file. Do not calculate by yourself. 
+    Return only absolute values (i.e no '+' or '-'). 
     ```
     {{
         "summaryTotals": [
             {{
-                "description": "xxx",
-                "amount": "xxx"
+                "deductions": "xxx",
+                "employer_contributions": "xxx",
+                "wages_payable": "xxx"
             }}
         ]
     }}
@@ -81,12 +88,46 @@ def call_gpt(df, prompt, user_prompt):
                  You will be analyzing financial payroll files and creating journal entires for the company."},
                 {"role": "user", "content": full_prompt}
             ],
-            max_tokens=300
+            temperature=0.5,
+            max_tokens=600
         )
-        return response.choices[0].message.content
+
+        content = response.choices[0].message.content
+        content = content.strip("```").strip()
+        content = content.strip("json")
+        json_content = json.loads(content) 
+        print("response: ", json_content)
+        return json_content
     except Exception as e:
         return str(e)
+    
 
+def convert_to_df_employees(employees):
+    print("employees: ", employees)
+    df = pd.DataFrame(employees)
+
+    output_df = pd.DataFrame({
+            "Name of Employee": df["employee_name"],
+            "Gross Salary": df["gross_salary"],
+            "Add: Additions": df["additions"],
+            "Less: Deductions": df["deductions"],
+            "Less: Clawbacks/Paybacks/NoPay Leave": df["clawbacks"],
+            "= Take-home Salary": df["take_home_salary"]
+        })
+    
+    return output_df
+
+def convert_to_df_summary_totals(summary_totals):
+    print("summary totals: ", summary_totals)
+    df = pd.DataFrame(summary_totals)
+
+    output_df = pd.DataFrame({
+                "Add: Deductions": df["deductions"],
+                "Add: Employer Contributions": df["employer_contributions"],
+                "= Wages Payable": df["wages_payable"]
+            })
+    
+    return output_df
 
 def main():
     st.title("Smart Journal Entry Maker")
@@ -108,8 +149,13 @@ def main():
 
             df = pd.read_excel(uploaded_file, sheet_name=None) # some excel files have multiple sheets
             response = call_gpt(df, system_prompt, custom_prompt) 
+            processed_data_employees = convert_to_df_employees(response['employees'])
+            processed_data_summary_totals = convert_to_df_summary_totals(response['summaryTotals'])
+
             st.write(f"Analysis for {uploaded_file.name}:")
-            st.write(response)
+            st.info(f"Payroll for {response['date']}")
+            st.write(processed_data_employees)
+            st.write(processed_data_summary_totals)
             st.write(f"utc timestamp: {utc_timestamp}")
 
 if __name__ == "__main__":
