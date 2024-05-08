@@ -5,7 +5,7 @@ from datetime import timezone
 import datetime 
 
 OPENAI_API_KEY = '' 
-OPENAI_API_KEY = st.secrets["API_KEY"]
+OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
 
 client = openai.OpenAI(
     api_key=OPENAI_API_KEY
