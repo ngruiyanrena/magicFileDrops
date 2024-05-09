@@ -30,9 +30,11 @@ system_prompt = f"""
     If a particular value is not available, return 0 for that field. 
     
     For these 2 fields: 
-        1. employer_contributions - The total of all employer contributions such as CPF(OW and AW), SHG, SDL, SSO.
-        2. date - The month and year this payroll file is for. eg. "Jan 2023"
-        
+        1. employer_contributions: 
+            - The total of all employer contributions for all employees, including CPF (OW and AW), SHG, and SDL contributions.
+            - DO NOT include employee CPF contribution. 
+        2. date: The month and year this payroll file is for. eg. "Jan 2023"
+
     Present the data in the following structured JSON format:
     ```
     {{
@@ -71,7 +73,7 @@ def call_gpt(df, prompt, user_prompt):
                  You will be analyzing financial payroll files, ensuring accuracy and compliance with the stated requirements."},
                 {"role": "user", "content": full_prompt}
             ],
-            temperature=0.2,
+            temperature=0,
             max_tokens=600
         )
 
@@ -106,6 +108,13 @@ def convert_to_df_employees(employees):
     
     return output_df
 
+def calculate_wages_payable(employees_df, employer_contributions):
+    employer_contributions = pd.to_numeric(employer_contributions)
+    take_home_salary = employees_df.at['Total', "= Take-home Salary"]
+    deductions = employees_df.at['Total', "Less: Deductions"]
+    wages_payable = take_home_salary + deductions + employer_contributions
+    return wages_payable
+
 
 
 pd.set_option('display.max_columns', None) 
@@ -132,12 +141,12 @@ def main():
             df = pd.read_excel(uploaded_file, sheet_name=None) # some excel files have multiple sheets
             response = call_gpt(df, system_prompt, custom_prompt) 
             processed_data_employees = convert_to_df_employees(response['employees'])
-            
+            wages_payable = calculate_wages_payable(processed_data_employees, response['employer_contributions'])
 
             st.write(f"Analysis for {uploaded_file.name}:")
             st.info(f"Payroll for {response['date']}")
             st.write(processed_data_employees)
-            # st.write(processed_data_summary_totals)
+            st.warning(f"Wages Payable (total cost to company) = {wages_payable}")
             st.write(f"utc timestamp: {utc_timestamp}")
 
 if __name__ == "__main__":
