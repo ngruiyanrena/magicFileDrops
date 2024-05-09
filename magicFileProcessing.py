@@ -22,7 +22,7 @@ system_prompt = f"""
         3. additions: The total of all bonuses, reimbursements, or claims, including meal and transport allowances, added to the basic pay.
         4. deductions: 
             - The total of all deductions from the salary, including employee contributions such as CPF, CDAC, ECF, or other voluntary deductions. 
-            - DO NOT include SDL or employer CPF contribution. 
+            - Important: DO NOT include SDL or employer CPF contribution. 
         5. clawbacks: The total of all deductions for leave payment, including no pay leave, or any unpaid leaves taken by the employee.
         6. take_home_salary: The net salary amount that the employee receives after all additions and deductions. Ensure this value is directly extracted from the data. Do not perform any calculations for this field.
 
@@ -88,9 +88,8 @@ def convert_to_df_employees(employees):
     columns = ["gross_salary", "additions", "deductions", "clawbacks", "take_home_salary"]
     df[columns] = df[columns].apply(pd.to_numeric, errors='coerce')
 
-    total = df.select_dtypes(include=[np.number]).sum()
-    total['employee_name'] = "Total"
-    df = df.append(total, ignore_index=True)
+    df.loc['Total']= df.sum()
+    df.loc[df.index[-1], 'employee_name'] = 'Total'
 
     output_df = pd.DataFrame({
             "Name of Employee": df["employee_name"],
