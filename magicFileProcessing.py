@@ -4,7 +4,6 @@ import openai
 from datetime import timezone 
 import datetime 
 import json
-import numpy as np 
 
 OPENAI_API_KEY = '' 
 OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
@@ -30,6 +29,10 @@ system_prompt = f"""
     Ensure all returned values are in absolute terms (no '+' or '-'). 
     If a particular value is not available, return 0 for that field. 
     
+    For these 2 fields: 
+        1. employer_contributions - The total of all employer contributions such as CPF(OW and AW), SHG, SDL, SSO.
+        2. date - The month and year this payroll file is for. eg. "Jan 2023"
+        
     Present the data in the following structured JSON format:
     ```
     {{
@@ -43,11 +46,12 @@ system_prompt = f"""
                 "take_home_salary": "xxx"
             }}
         ],
-        "date": "xxx" // Find month and year this payroll file is for. eg. "Jan 2023"
+        "employer_contributions": "xxx",
+        "date": "xxx"
     }}
     ```
     
-    Response should only follow the provided structure and not deviate from it. Return a valid json. 
+    Response must only follow the provided structure and not deviate from it. Return a valid json. 
     """
 
 
@@ -102,17 +106,7 @@ def convert_to_df_employees(employees):
     
     return output_df
 
-# def convert_to_df_summary_totals(summary_totals):
-#     print("summary totals: ", summary_totals)
-#     df = pd.DataFrame(summary_totals)
 
-#     output_df = pd.DataFrame({
-#                 "Add: Deductions": df["deductions"],
-#                 "Add: Employer Contributions": df["employer_contributions"],
-#                 "= Wages Payable": df["wages_payable"]
-#             })
-    
-#     return output_df
 
 pd.set_option('display.max_columns', None) 
 pd.set_option('display.max_rows', None) 
@@ -138,7 +132,7 @@ def main():
             df = pd.read_excel(uploaded_file, sheet_name=None) # some excel files have multiple sheets
             response = call_gpt(df, system_prompt, custom_prompt) 
             processed_data_employees = convert_to_df_employees(response['employees'])
-            # processed_data_summary_totals = convert_to_df_summary_totals(response['summaryTotals'])
+            
 
             st.write(f"Analysis for {uploaded_file.name}:")
             st.info(f"Payroll for {response['date']}")
