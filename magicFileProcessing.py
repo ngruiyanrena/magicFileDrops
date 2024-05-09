@@ -24,12 +24,11 @@ system_prompt = f"""
             - The total of all deductions from the salary, including employee contributions such as CPF, CDAC, ECF, or other voluntary deductions. 
             - DO NOT include SDL or employer CPF contribution. 
         5. clawbacks: The total of all deductions for leave payment, including no pay leave, or any unpaid leaves taken by the employee.
-        6. take_home_salary: The net salary amount that the employee receives after all additions and deductions. Ensure the value is directly extracted from the data. Do not perform any calculations for this field.
+        6. take_home_salary: The net salary amount that the employee receives after all additions and deductions. Ensure this value is directly extracted from the data. Do not perform any calculations for this field.
 
-     Compliance checks:
-    - Verify that the following equation holds true for each record: take_home_salary = gross_salary + additions - deductions - clawbacks.
-    - If the equation does not balance, review all components for accuracy.
-    - Present all values in absolute terms (no '+' or '-'). Use '0' for any missing data.
+    This equation MUST hold: take_home_salary = gross_salary + additions - deductions - clawbacks. If equation does not hold, recheck numbers in all components.
+    Ensure all returned values are in absolute terms (no '+' or '-'). 
+    If a particular value is not available, return 0 for that field. 
     
     Present the data in the following structured JSON format:
     ```
@@ -76,7 +75,7 @@ def call_gpt(df, prompt, user_prompt):
         content = content.strip("```").strip()
         content = content.strip("json")
         json_content = json.loads(content) 
-        print("response: ", json_content)
+        st.write("response: ", json_content)
         return json_content
     except Exception as e:
         return str(e)
@@ -116,6 +115,8 @@ def convert_to_df_employees(employees):
     
 #     return output_df
 
+pd.set_option('display.max_columns', None) 
+pd.set_option('display.max_rows', None) 
 
 def main():
     st.title("Smart Journal Entry Maker")
@@ -136,7 +137,6 @@ def main():
             utc_timestamp = utc_time.timestamp()
 
             df = pd.read_excel(uploaded_file, sheet_name=None) # some excel files have multiple sheets
-
             response = call_gpt(df, system_prompt, custom_prompt) 
             processed_data_employees = convert_to_df_employees(response['employees'])
             # processed_data_summary_totals = convert_to_df_summary_totals(response['summaryTotals'])
