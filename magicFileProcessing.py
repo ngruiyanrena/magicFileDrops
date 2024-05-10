@@ -16,45 +16,45 @@ client = openai.OpenAI(
 system_prompt = f"""
     Extract and return payroll details for each indivdual employee listed in the data. 
     
-    For each employee, retrieve the following six key values:
+    For each employee, retrieve the following eight key values:
         1. employee_name: The full name of employee. 
         2. gross_salary: The basic pay or salary before any deductions. This is the total amount earned by the employee before tax or other deductions. 
-        3. additions: The total of all bonuses, reimbursements, or claims, including meal and transport allowances, added to the basic pay.
-        4. deductions: 
-            - The total of all deductions from the salary, including employee contributions such as CPF, CDAC, ECF, or other voluntary deductions. 
-            - Important: DO NOT include SDL or employer CPF contribution. 
-        5. clawbacks: The total of all deductions for leave payment, including no pay leave, or any unpaid leaves taken by the employee.
-        6. take_home_salary: The net salary amount that the employee receives after all additions and deductions. Ensure this value is directly extracted from the data. Do not perform any calculations for this field.
+        3. claims: List of individual claims, each with a type and amount. If there are no claims, return an empty list. 
+        4. SHG: The total SHG amount for this employee, broken down into MBMD, SINDA, CDAC, and ECF contributions. If no value, return 0. 
+        5. employee_cpf: The CPF (Central Provident Fund) amount contributed by this employee. If no value, return 0. 
+        6. net_payable_to_employee: The net amount payable to this employee.
+        7. employer_cpf: The CPF amount contributed by the employer for this employee. If no value, return 0. 
+        8. other_employer_contributions: The SDL (Skills Development Levy) amount contributed by the employer for this employee. If no value, return 0. 
 
-    This equation MUST hold: take_home_salary = gross_salary + additions - deductions - clawbacks. If equation does not hold, recheck numbers in all components.
-    Ensure all returned values are in absolute terms (no '+' or '-'). 
-    If a particular value is not available, return 0 for that field. 
-    
-    For these 2 fields: 
-        1. employer_contributions: 
-            - The total of all employer contributions for all employees, including CPF (OW and AW), SHG, and SDL contributions.
-            - DO NOT include employee CPF contribution. 
-        2. date: The month and year this payroll file is for. eg. "Jan 2023"
+    Ensure all returned values are in absolute terms (no '+' or '-').
+
+    Include the payroll date in the format 'Month YYYY' (e.g., 'Jan 2023').
 
     Present the data in the following structured JSON format:
     ```
     {{
         "employees": [
             {{
-                "employee_name": "xxx", 
-                "gross_salary": "xxx",
-                "additions": "xxx",
-                "deductions": "xxx",
-                "clawbacks": "xxx",
-                "take_home_salary": "xxx"
+                "employee_name": "Name", 
+                "gross_salary": "Amount",
+                "claims": [ 
+                    {{
+                        "type_of_claim": "Type",
+                        "claim_amount": "Amount"
+                    }} 
+                ],
+                "SHG": "Amount",
+                "employee_cpf": "Amount",
+                "net_payable_to_employee": "Amount",
+                "employer_cpf": "Amount",
+                "other_employer_contributions": "Amount"
             }}
         ],
-        "employer_contributions": "xxx",
-        "date": "xxx"
+        "date": "Month YYYY"
     }}
     ```
     
-    Response must only follow the provided structure and not deviate from it. Return a valid json. 
+    Response must only follow the provided structure and not deviate from it. You must return a valid json with the provided strucutre. 
     """
 
 
@@ -76,13 +76,20 @@ def call_gpt(df, prompt, user_prompt):
                 {"role": "user", "content": full_prompt}
             ],
             temperature=0,
-            max_tokens=600
+            max_tokens=900
         )
+        print(response)
+        st.write(response.usage)
         content = response.choices[0].message.content
         content = content.strip("```").strip()
-        content = content.strip("json")
-        json_content = json.loads(content) 
-        st.write("response: ", json_content)
+        content = content.strip("json").strip()
+        print("contet: ", content)
+        try: 
+            json_content = json.loads(content) 
+            st.write("response: ", json_content)
+        except json.JSONDecodeError as e:
+            content = content.strip("```").strip()
+            json_content = json.loads(content) 
         return json_content
     except Exception as e:
         return str(e)
@@ -90,31 +97,40 @@ def call_gpt(df, prompt, user_prompt):
 
 def convert_to_df_employees(employees):
     print("employees: ", employees)
-    df = pd.DataFrame(employees)
 
-    columns = ["gross_salary", "additions", "deductions", "clawbacks", "take_home_salary"]
-    df[columns] = df[columns].apply(pd.to_numeric, errors='coerce')
+    df = pd.json_normalize(employees)
+    df['total_claims'] = df['claims'].apply(lambda x: sum(float(claim['claim_amount']) for claim in x))
+    df = df.apply(pd.to_numeric, errors='ignore')
+    print("df", df)
 
-    df.loc['Total']= df.sum()
-    df.loc[df.index[-1], 'employee_name'] = 'Total'
+    claims_details = pd.DataFrame(columns=['employee_name', 'type_of_claim', 'claim_amount'])
+    for index, row in df.iterrows():
+        if isinstance(row['claims'], list):
+            for claim in row['claims']:
+                claims_details = claims_details.append({
+                    'employee_name': row['employee_name'],
+                    'type_of_claim': claim['type_of_claim'],
+                    'claim_amount': claim['claim_amount']
+                }, ignore_index=True)
+    print("claims", claims_details)
 
-    output_df = pd.DataFrame({
-            "Name of Employee": df["employee_name"],
-            "Gross Salary": df["gross_salary"],
-            "Add: Additions": df["additions"],
-            "Less: Deductions": df["deductions"],
-            "Less: Clawbacks/Paybacks/NoPay Leave": df["clawbacks"],
-            "= Take-home Salary": df["take_home_salary"]
-        })
+    output_df = df.drop(columns='claims')
+    output_df['computed_take_home'] = output_df['gross_salary'] + output_df['total_claims'] - output_df['SHG'] - output_df['employee_cpf']
+    output_df.loc['Total']= output_df.sum()
+    output_df.loc[output_df.index[-1], 'employee_name'] = 'Total'
     
-    return output_df
+    return output_df, claims_details
 
-def calculate_wages_payable(employees_df, employer_contributions):
-    employer_contributions = pd.to_numeric(employer_contributions)
-    take_home_salary = employees_df.at['Total', "= Take-home Salary"]
-    deductions = employees_df.at['Total', "Less: Deductions"]
-    wages_payable = take_home_salary + deductions + employer_contributions
-    return wages_payable
+def calculate_cost_to_company(employees_df):
+    # take home pay + employer cpf + other employer contributions
+    # should add shg and employee cpf? 
+    net_payable_to_employee = employees_df.at['Total', "net_payable_to_employee"]
+    employer_cpf = employees_df.at['Total', "employer_cpf"]
+    other_employer_contributions = employees_df.at['Total', "other_employer_contributions"]
+    SHG = employees_df.at['Total', "SHG"]
+    employee_cpf = employees_df.at['Total', "employee_cpf"]
+    cost_to_company = net_payable_to_employee + employer_cpf + other_employer_contributions + SHG + employee_cpf
+    return cost_to_company
 
 
 
@@ -142,13 +158,14 @@ def main():
 
             df = pd.read_excel(uploaded_file, sheet_name=None) # some excel files have multiple sheets
             response = call_gpt(df, system_prompt, custom_prompt) 
-            processed_data_employees = convert_to_df_employees(response['employees'])
-            wages_payable = calculate_wages_payable(processed_data_employees, response['employer_contributions'])
+            employees_df, claims_details = convert_to_df_employees(response['employees'])
+            cost_to_company = calculate_cost_to_company(employees_df)
 
             st.write(f"Analysis for {uploaded_file.name}:")
             st.info(f"Payroll for {response['date']}")
-            st.write(processed_data_employees)
-            st.warning(f"Wages Payable (total cost to company) = {wages_payable}")
+            st.write(employees_df)
+            st.write(claims_details)
+            st.warning(f"Cost to company = {cost_to_company}")
             st.write(f"utc timestamp: {utc_timestamp}")
             st.write("time taken: ", str(round((time.time() - start_time), 2)) + " seconds")
 
