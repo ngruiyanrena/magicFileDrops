@@ -4,6 +4,7 @@ import openai
 from datetime import timezone 
 import datetime 
 import json
+import time
 
 OPENAI_API_KEY = '' 
 OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
@@ -68,6 +69,7 @@ def call_gpt(df, prompt, user_prompt):
         """
         response = client.chat.completions.create(
             model="gpt-4-turbo",
+            # model = "gpt-3.5-turbo",
             messages=[
                 {"role": "system", "content": "You are a skilled accountant with comprehensive knowledge in all aspects of payroll accounting. \
                  You will be analyzing financial payroll files, ensuring accuracy and compliance with the stated requirements."},
@@ -76,7 +78,6 @@ def call_gpt(df, prompt, user_prompt):
             temperature=0,
             max_tokens=600
         )
-
         content = response.choices[0].message.content
         content = content.strip("```").strip()
         content = content.strip("json")
@@ -123,7 +124,6 @@ pd.set_option('display.max_rows', None)
 def main():
     st.title("Smart Journal Entry Maker")
 
-
     uploaded_files = st.file_uploader("Upload payroll Excel files", type=['xlsx'], accept_multiple_files=True)
 
     if st.sidebar.checkbox("Enable prompt editing"):
@@ -134,6 +134,8 @@ def main():
 
     if uploaded_files:
         for uploaded_file in uploaded_files:
+            start_time = time.time()
+
             dt = datetime.datetime.now(timezone.utc) 
             utc_time = dt.replace(tzinfo=timezone.utc) 
             utc_timestamp = utc_time.timestamp()
@@ -148,6 +150,7 @@ def main():
             st.write(processed_data_employees)
             st.warning(f"Wages Payable (total cost to company) = {wages_payable}")
             st.write(f"utc timestamp: {utc_timestamp}")
+            st.write("time taken: ", str(round((time.time() - start_time), 2)) + " seconds")
 
 if __name__ == "__main__":
     main()
