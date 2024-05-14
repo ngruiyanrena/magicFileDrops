@@ -83,13 +83,13 @@ def call_gpt(df, prompt, user_prompt):
         content = response.choices[0].message.content
         content = content.strip("```").strip()
         content = content.strip("json").strip()
-        print("contet: ", content)
+        print("content: ", content)
         try: 
             json_content = json.loads(content) 
-            st.write("response: ", json_content)
         except json.JSONDecodeError as e:
             content = content.strip("```").strip()
             json_content = json.loads(content) 
+        st.write("response: ", json_content)
         return json_content
     except Exception as e:
         return str(e)
@@ -122,8 +122,7 @@ def convert_to_df_employees(employees):
     return output_df, claims_details
 
 def calculate_cost_to_company(employees_df):
-    # take home pay + employer cpf + other employer contributions
-    # should add shg and employee cpf? 
+    # take home pay + employer cpf + other employer contributions + shg + employee cpf
     net_payable_to_employee = employees_df.at['Total', "net_payable_to_employee"]
     employer_cpf = employees_df.at['Total', "employer_cpf"]
     other_employer_contributions = employees_df.at['Total', "other_employer_contributions"]
@@ -132,6 +131,7 @@ def calculate_cost_to_company(employees_df):
     cost_to_company = net_payable_to_employee + employer_cpf + other_employer_contributions + SHG + employee_cpf
     return cost_to_company
 
+# def convert_to_journals(employees_df, claims_details):
 
 
 pd.set_option('display.max_columns', None) 
