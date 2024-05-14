@@ -103,15 +103,16 @@ def convert_to_df_employees(employees):
     df = df.apply(pd.to_numeric, errors='ignore')
     print("df", df)
 
-    claims_details = pd.DataFrame(columns=['employee_name', 'type_of_claim', 'claim_amount'])
+    claims_details_list = []
     for index, row in df.iterrows():
         if isinstance(row['claims'], list):
             for claim in row['claims']:
-                claims_details = claims_details.append({
+                claims_details_list.append({
                     'employee_name': row['employee_name'],
                     'type_of_claim': claim['type_of_claim'],
                     'claim_amount': claim['claim_amount']
-                }, ignore_index=True)
+                })
+    claims_details = pd.DataFrame(claims_details_list, columns=['employee_name', 'type_of_claim', 'claim_amount'])
     print("claims", claims_details)
 
     output_df = df.drop(columns='claims')
