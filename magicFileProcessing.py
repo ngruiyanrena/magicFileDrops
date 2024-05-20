@@ -127,6 +127,43 @@ hreasily_prompt = f"""
     Provide the column names in a list format and adhere to the structure above to map each column to its appropriate category.
     """
 
+other_prompt = f"""
+    For each column name from a payroll data file, assign it to the most appropriate category from the list below. 
+    If a column does not fit any of these categories, exclude it from the output. 
+    Ensure the response adheres to the specified JSON structure without deviation.
+
+    Categories:
+        1. employee_name: Full name of the employee. 
+        2. gross_salary: Basic salary. Amount earned by the employee before tax or other deductions. 
+        3. bonus: On top of gross salary. 
+        4. deductions: Total of Leave Payments or Deductions. 
+        5. claims: If no claims column exists, this should be an empty list in the JSON. 
+        6. SHG (Self-Help Group): Columns that indicate SHG amount.
+        7. employee_cpf: CPF contributions by the employee.
+        8. net_payable_to_employee: Net salary payable to the employee.
+        9. employer_cpf: CPF contributions by the employer.
+        10. other_employer_contributions: Includes SDL (Skills Development Levy), FWL (Foreign Worker Levy).
+
+    For each category, if no column name matches, return empty list. 
+
+    JSON Structure:
+    ```
+    {{
+        "employee_name": ["column_name", ...], 
+        "gross_salary": ["column_name"],
+        "bonus": ["column_name"],
+        "deductions": ["column_name"],
+        "claims": ["column_name", ...], 
+        "SHG": ["column_name", ...],
+        "employee_cpf": ["column_name"],
+        "net_payable_to_employee": ["column_name"],
+        "employer_cpf": ["column_name"],
+        "other_employer_contributions": ["column_name", ...]
+    }}
+    ```
+    
+    Provide the column names in a list format and adhere to the structure above to map each column to its appropriate category.
+    """
 
 def call_gpt(column_names, system_prompt, user_prompt):
     try:
@@ -206,6 +243,9 @@ def extract_columns(response, table):
     numeric_columns = identify_numeric_column(extracted_table.columns, extracted_table)
     for numeric_column in numeric_columns:
         extracted_table[numeric_column] = extracted_table[numeric_column].apply(convert_to_numeric)
+    extracted_table[numeric_columns] = extracted_table[numeric_columns].fillna(0) # replace nan with zero
+    extracted_table[numeric_columns] = extracted_table[numeric_columns].abs() # make sure all numbers are absolute 
+
     print("extracted table: ", extracted_table)
     return extracted_table
 
@@ -215,7 +255,7 @@ def format_table(table):
             continue
         if table[column].isna().all() or (table[column] == '-').all():
             table[column] = 0
-        table[column] = pd.to_numeric(table[column], errors='coerce').abs() # make sure all numbers are absolute 
+
     print("formatted table: ", table)
     return table
 
@@ -378,7 +418,7 @@ def main():
 
     payroll_company = st.selectbox(
     "Select Payroll Company",
-    (None, "Payboy", "Talenox", "HReasily"))
+    (None, "Payboy", "Talenox", "HReasily", "Other"))
     st.write("You selected:", payroll_company)
 
     uploaded_file = st.file_uploader("Upload Payroll Excel file", type=['xlsx'])
@@ -404,6 +444,9 @@ def main():
             df = pd.read_excel(uploaded_file, header=None)
         elif payroll_company == 'HReasily':
             system_prompt = hreasily_prompt
+            df = pd.read_excel(uploaded_file, header=None)
+        elif payroll_company == 'Other':
+            system_prompt = other_prompt
             df = pd.read_excel(uploaded_file, header=None)
             
         tables = extract_tables_from_csv(df)
