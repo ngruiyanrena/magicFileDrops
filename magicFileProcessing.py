@@ -6,12 +6,19 @@ from datetime import datetime
 import json
 import time
 import numpy as np
+import anthropic
 
 OPENAI_API_KEY = '' 
-OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
+# OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
+ANTHROPIC_API_KEY=''
+ANTHROPIC_API_KEY = st.secrets["ANTHROPIC_API_KEY"]
 
 client = openai.OpenAI(
     api_key=OPENAI_API_KEY
+)
+
+client = anthropic.Anthropic(
+    api_key=ANTHROPIC_API_KEY
 )
 
 payboy_prompt = f"""
@@ -98,7 +105,7 @@ hreasily_prompt = f"""
         1. employee_name: Full name of the employee. Do not include foreign name. 
         2. gross_salary: Basic salary. Amount earned by the employee before tax or other deductions. 
         3. bonus: On top of gross salary. 
-        4. deductions: Total of Leave Payments or Deductions. SSO employee contribution, tax contribution. 
+        4. deductions: SSO employee contribution, tax contribution. Do not include Total Deductions. 
         5. claims: If no claims column exists, this should be an empty list in the JSON. 
         6. SHG (Self-Help Group): Columns that indicate SHG amount.
         7. employee_cpf: CPF contributions by the employee.
@@ -186,6 +193,40 @@ def call_gpt(column_names, system_prompt, user_prompt):
         print(response)
         st.write(response.usage)
         content = response.choices[0].message.content
+        content = content.strip("```").strip()
+        content = content.strip("json").strip()
+        print("content: ", content)
+        try: 
+            json_content = json.loads(content) 
+        except json.JSONDecodeError as e:
+            content = content.strip("```").strip()
+            json_content = json.loads(content) 
+        st.write("response: ", json_content)
+        return json_content
+    except Exception as e:
+        return str(e)
+    
+def call_anthropic(column_names, system_prompt, user_prompt):
+    try:
+        full_prompt = f"""
+            Here are the column names from the payroll file to map. 
+            {column_names}
+            {system_prompt}
+            Additional User Instructions: {user_prompt}
+        """
+        response = client.messages.create(
+            model = "claude-3-haiku-20240307",
+            system = "You are a skilled accountant with comprehensive knowledge in payroll accounting. \
+                    You will be analyzing the list of column names from the payroll file and map each to the appropriate category as per the instructions.",
+            messages=[
+                {"role": "user", "content": full_prompt}
+            ],
+            temperature=0,
+            max_tokens=1000
+        )
+        print(response)
+        st.write(response.usage)
+        content = response.content[0].text
         content = content.strip("```").strip()
         content = content.strip("json").strip()
         print("content: ", content)
@@ -456,7 +497,8 @@ def main():
         print("relevant table: ", relevant_table)
         print("relevant table columns: ", relevant_table.columns)
         
-        response = call_gpt(relevant_table.columns, system_prompt, custom_prompt) 
+        # response = call_gpt(relevant_table.columns, system_prompt, custom_prompt) 
+        response = call_anthropic(relevant_table.columns, system_prompt, custom_prompt)
         extracted_table = extract_columns(response, relevant_table)
         formatted_table = format_table(extracted_table)
         summary_total_table = calculate_summary_total(formatted_table)
