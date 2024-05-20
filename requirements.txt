@@ -2,3 +2,4 @@ openai
 datetime
 streamlit
 openpyxl
+anthropic
