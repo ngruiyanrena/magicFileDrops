@@ -426,6 +426,8 @@ def convert_to_import_journals(table):
     table = table.loc[:, (table != 0).any(axis=0)] # drop 0 columns
 
     entries = []
+
+    # debits - employees
     if 'employees_salary_excluding_contributions' in table.columns:
         entries.append(['Employees: Salary (excluding contributions)', table['employees_salary_excluding_contributions'].iloc[0], 0])
     if 'employees_gross_bonus' in table.columns:
@@ -437,8 +439,9 @@ def convert_to_import_journals(table):
     if 'employees_employer_contributions_cpf' in table.columns:
         entries.append(['Employees: Employer CPF Contribution', table['employees_employer_contributions_cpf'].iloc[0], 0])
     if 'employees_employer_contributions_other' in table.columns:
-        entries.append(['Employees: Employer Other Contribtuion Contribution', table['employees_employer_contributions_other'].iloc[0], 0])
+        entries.append(['Employees: Employer Other Contribution', table['employees_employer_contributions_other'].iloc[0], 0])
 
+    # debits - directors 
     if 'directors_salary_excluding_contributions' in table.columns:
         entries.append(['Directors: Salary (excluding contributions)', table['directors_salary_excluding_contributions'].iloc[0], 0])
     if 'directors_gross_bonus' in table.columns:
@@ -450,14 +453,15 @@ def convert_to_import_journals(table):
     if 'directors_employer_contributions_cpf' in table.columns:
         entries.append(['Directors: Employer CPF Contribution', table['directors_employer_contributions_cpf'].iloc[0], 0])
     if 'directors_employer_contributions_other' in table.columns:
-        entries.append(['Directors: Employer Other Contribtuion Contribution', table['directors_employer_contributions_other'].iloc[0], 0])
+        entries.append(['Directors: Employer Other Contribution', table['directors_employer_contributions_other'].iloc[0], 0])
 
-    # claims 
+    # debits - claims 
     claim_columns = [col for col in table.columns if col.startswith('claims_')]
     for claim in claim_columns:
         claim_description = claim.replace('claims_', '') 
         entries.append([f"Claims: {claim_description}", table[claim].iloc[0], 0])
 
+    # credits
     if 'total_take_home_earnings' in table.columns:
         entries.append(['Total Take-Home Earnings', 0, table['total_take_home_earnings'].iloc[0]])
     if 'total_contributions' in table.columns:
