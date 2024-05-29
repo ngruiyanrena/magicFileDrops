@@ -57,7 +57,7 @@ payboy_prompt = f"""
     }}
     ```
     
-    Provide the column names in a list format and adhere to the structure above to map each column to its appropriate category.
+    Provide the column names in a list format and adhere to the structure above to map each column to its appropriate category. Only return valid json.
     """
 
 talenox_prompt = f"""
