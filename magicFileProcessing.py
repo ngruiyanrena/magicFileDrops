@@ -12,7 +12,7 @@ from fuzzywuzzy import process
 OPENAI_API_KEY = '' 
 # OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
 ANTHROPIC_API_KEY=''
-ANTHROPIC_API_KEY = st.secrets["ANTHROPIC_API_KEY"]
+# ANTHROPIC_API_KEY = st.secrets["ANTHROPIC_API_KEY"]
 
 client = openai.OpenAI(
     api_key=OPENAI_API_KEY
@@ -427,7 +427,7 @@ def convert_to_import_journals(table):
 
     entries = []
 
-    # debits - employees
+    # debits: employees
     if 'employees_salary_excluding_contributions' in table.columns:
         entries.append(['Employees: Salary (excluding contributions)', table['employees_salary_excluding_contributions'].iloc[0], 0])
     if 'employees_gross_bonus' in table.columns:
@@ -441,7 +441,7 @@ def convert_to_import_journals(table):
     if 'employees_employer_contributions_other' in table.columns:
         entries.append(['Employees: Employer Other Contribution', table['employees_employer_contributions_other'].iloc[0], 0])
 
-    # debits - directors 
+    # debits: directors 
     if 'directors_salary_excluding_contributions' in table.columns:
         entries.append(['Directors: Salary (excluding contributions)', table['directors_salary_excluding_contributions'].iloc[0], 0])
     if 'directors_gross_bonus' in table.columns:
@@ -455,7 +455,7 @@ def convert_to_import_journals(table):
     if 'directors_employer_contributions_other' in table.columns:
         entries.append(['Directors: Employer Other Contribution', table['directors_employer_contributions_other'].iloc[0], 0])
 
-    # debits - claims 
+    # debits: claims 
     claim_columns = [col for col in table.columns if col.startswith('claims_')]
     for claim in claim_columns:
         claim_description = claim.replace('claims_', '') 
@@ -470,6 +470,7 @@ def convert_to_import_journals(table):
     result_df = pd.DataFrame(entries, columns=['Description', 'Debits (SGD)', 'Credits (SGD)'])
     print("import journals output: ", result_df)
     return result_df
+
 
 def load_and_combine_sheets(uploaded_file):
     xls = pd.ExcelFile(uploaded_file)
@@ -640,6 +641,17 @@ def main():
         import_journals_output = convert_to_import_journals(final_summary)
         import_journals_output_summary = summarize_table(import_journals_output)
 
+        output_df = pd.DataFrame({
+            'Journal Reference': None,
+            'Contact': None,
+            'Date': None,
+            'Account': None,
+            'Description': import_journals_output['Description'],
+            'Tax Included in Amount': None,
+            'Debit Amount (SGD)': import_journals_output['Debits (SGD)'],
+            'Credit Amount (SGD)': import_journals_output['Credits (SGD)']
+        })
+        
         st.write(f"Analysis for {uploaded_file.name}:")
         st.info("Employee Level")
         st.table(formatted_table)
@@ -658,6 +670,11 @@ def main():
         st.table(final_summary)
         st.table(import_journals_output)
         st.table(import_journals_output_summary)
+
+        st.success("Import Journals Template")
+        st.dataframe(output_df)
+        csv = output_df.to_csv(index=False)
+        st.download_button("Download CSV", csv, "payroll_import_journals.csv", "text/csv", key='download-csv')
 
         st.write("utc timestamp :", str(round(utc_timestamp)))
         st.write("time taken: ", str(round((time.time() - start_time), 2)) + " seconds")
