@@ -11,8 +11,8 @@ from fuzzywuzzy import process
 
 OPENAI_API_KEY = '' 
 # OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
-ANTHROPIC_API_KEY=''
-# ANTHROPIC_API_KEY = st.secrets["ANTHROPIC_API_KEY"]
+ANTHROPIC_API_KEY= ''
+ANTHROPIC_API_KEY = st.secrets["ANTHROPIC_API_KEY"]
 
 client = openai.OpenAI(
     api_key=OPENAI_API_KEY
