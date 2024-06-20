@@ -429,17 +429,17 @@ def convert_to_import_journals(table):
 
     # debits: employees
     if 'employees_salary_excluding_contributions' in table.columns:
-        entries.append(['Employees: Salary (excluding contributions)', table['employees_salary_excluding_contributions'].iloc[0], 0])
+        entries.append(['Salary (excluding contributions)', table['employees_salary_excluding_contributions'].iloc[0], 0])
     if 'employees_gross_bonus' in table.columns:
-        entries.append(['Employees: Bonus (excluding contributions)', table['employees_gross_bonus'].iloc[0], 0])
+        entries.append(['Bonus (excluding contributions)', table['employees_gross_bonus'].iloc[0], 0])
     if 'employees_employee_contributions_cpf' in table.columns:
-        entries.append(['Employees: Employee CPF Contribution', table['employees_employee_contributions_cpf'].iloc[0], 0])
+        entries.append(['Employee CPF Contribution', table['employees_employee_contributions_cpf'].iloc[0], 0])
     if 'employees_employee_contributions_other' in table.columns:
-        entries.append(['Employees: Employee Other Contribution', table['employees_employee_contributions_other'].iloc[0], 0])
+        entries.append(['Employee Other Contribution', table['employees_employee_contributions_other'].iloc[0], 0])
     if 'employees_employer_contributions_cpf' in table.columns:
-        entries.append(['Employees: Employer CPF Contribution', table['employees_employer_contributions_cpf'].iloc[0], 0])
+        entries.append(['Employer CPF Contribution', table['employees_employer_contributions_cpf'].iloc[0], 0])
     if 'employees_employer_contributions_other' in table.columns:
-        entries.append(['Employees: Employer Other Contribution', table['employees_employer_contributions_other'].iloc[0], 0])
+        entries.append(['Employer Other Contribution', table['employees_employer_contributions_other'].iloc[0], 0])
 
     # debits: directors 
     if 'directors_salary_excluding_contributions' in table.columns:
