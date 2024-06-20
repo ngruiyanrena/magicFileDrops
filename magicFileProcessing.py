@@ -67,9 +67,9 @@ talenox_prompt = f"""
 
     Categories:
         1. employee_name: Full name of the employee.
-        2. gross_salary: Use "total recurring full" column instead of 'gross salary'.
-        3. gross_bonus: Use 'total adhoc' instead of 'total bonus'.
-        4. gross_deductions: Total of Leave Payments or Deductions.
+        2. gross_salary: Use 'ordinary wage' column instead of 'gross salary'.
+        3. gross_bonus: Use 'additional wage' instead of 'total bonus'.
+        4. gross_deductions: return empty list. 
         5. claims: If no claims column exists, this should be an empty list in the JSON.
         6. employee_contributions_cpf: CPF contributions by the employee, excluding year-to-date figures. 
         7. employee_contributions_other: Columns that indicate SHG (Self-Help Group) amount. Not the type. 
