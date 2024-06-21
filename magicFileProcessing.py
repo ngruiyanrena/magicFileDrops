@@ -67,11 +67,11 @@ talenox_prompt = f"""
 
     Categories:
         1. employee_name: Full name of the employee.
-        2. gross_salary: Use 'total recurring prorated' column instead of 'gross salary'.
-        3. gross_bonus: Use 'additional wage' instead of 'total bonus'.
-        4. gross_deductions: return empty list. 
+        2. gross_salary: Use 'Total recurring prorated', 'Total adhoc', 'Total attendance', 'Total Leave Payments or Deductions' columns. 
+        3. gross_bonus: Use 'total bonus'.
+        4. gross_deductions: Return empty list.
         5. claims: If no claims column exists, this should be an empty list in the JSON.
-        6. employee_contributions_cpf: CPF contributions by the employee, excluding year-to-date figures and total amount columns. 
+        6. employee_contributions_cpf: CPF contributions by the employee, excluding year-to-date figures and total amount columns. Do not take 'final cpf contribution' col.
         7. employee_contributions_other: Columns that indicate SHG (Self-Help Group) amount. Not the type. 
         8. net_payable_employee: Net salary payable to the employee.
         9. employer_contributions_cpf: CPF contributions by the employer, exclude year-to-date and total amount columns.
@@ -267,7 +267,7 @@ def identify_numeric_column(columns, data):
 
     return numeric_columns if numeric_columns else None
 
-def extract_columns(response, table):
+def extract_columns(response, table, payroll_company):
     columns_to_extract = []
     all_column_names = []
     for category, column_list in response.items():
@@ -284,7 +284,9 @@ def extract_columns(response, table):
     for numeric_column in numeric_columns:
         extracted_table[numeric_column] = extracted_table[numeric_column].apply(convert_to_numeric)
     extracted_table[numeric_columns] = extracted_table[numeric_columns].fillna(0) # replace nan with zero
-    extracted_table[numeric_columns] = extracted_table[numeric_columns].abs() # make sure all numbers are absolute 
+
+    if payroll_company != 'Talenox': 
+        extracted_table[numeric_columns] = extracted_table[numeric_columns].abs() # make sure all numbers are absolute 
 
     print("extracted table: ", extracted_table)
     return extracted_table
@@ -342,7 +344,7 @@ def calculate_employee_totals(table):
     print("employee totals table: ", result_df)
     return result_df
 
-def calculate_variables(table):
+def calculate_variables(table, payroll_company):
     table = table.copy()
 
     if 'gross_bonus' not in table:
@@ -366,7 +368,10 @@ def calculate_variables(table):
         table['total_claims'] = 0
 
     # Calculate new columns
-    table['salary_excluding_contributions'] = table['gross_salary'] - table['employee_contributions_cpf'] - table['employee_contributions_other'] - table['gross_deductions']
+    if payroll_company == 'Talenox':
+        table['salary_excluding_contributions'] = table['gross_salary'] - table['employee_contributions_cpf'] - table['employee_contributions_other'] - table['gross_bonus']
+    else:
+        table['salary_excluding_contributions'] = table['gross_salary'] - table['employee_contributions_cpf'] - table['employee_contributions_other'] - table['gross_deductions']
     table['take_home_earnings'] = table['salary_excluding_contributions'] + table['gross_bonus'] + table['total_claims']
     table['total_contributions'] = table['employee_contributions_cpf'] + table['employee_contributions_other'] + table['employer_contributions_cpf'] + table['employer_contributions_other']
 
@@ -625,12 +630,12 @@ def main():
         
         # response = call_gpt(relevant_table.columns, system_prompt) 
         response = call_anthropic(relevant_table.columns, system_prompt)
-        extracted_table = extract_columns(response, relevant_table)
+        extracted_table = extract_columns(response, relevant_table, payroll_company)
         formatted_table = format_table(extracted_table)
         employee_totals_table = calculate_employee_totals(formatted_table)
         summary_total_table = calculate_summary_total(formatted_table)
 
-        calculated_employee_totals_table = calculate_variables(employee_totals_table)
+        calculated_employee_totals_table = calculate_variables(employee_totals_table,payroll_company)
         table_summary = summarize_table(calculated_employee_totals_table)
 
         directors_table, employees_table = filter_directors_employees(director_names, calculated_employee_totals_table)
